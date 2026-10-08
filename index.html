@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Interactive File System Simulator demonstrating Contiguous, Linked, and Indexed allocation methods with a 64-block virtual disk, directory tree, FAT, and fragmentation visualization." />
+  <title>OS File System Simulator | Contiguous, Linked & Indexed</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Navigation Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>FS-Sim <span class="badge-tag">OS Project</span></h1>
+          <p class="subtitle">Virtual File System & Disk Allocation Simulator</p>
+        </div>
+      </div>
+
+      <!-- Controls in Header -->
+      <div class="header-actions">
+        <div class="allocation-picker">
+          <label for="allocationSelect">Allocation Scheme:</label>
+          <div class="select-wrapper">
+            <select id="allocationSelect">
+              <option value="contiguous">Contiguous Allocation</option>
+              <option value="linked">Linked Allocation</option>
+              <option value="indexed">Indexed Allocation</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="btnLoadDemo" class="btn btn-secondary" title="Populate sample files to show fragmentation">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+          Load Demo Data
+        </button>
+
+        <button id="btnFormatDisk" class="btn btn-danger-outline" title="Format Virtual Disk (Wipe all data)">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path></svg>
+          Format Disk
+        </button>
+
+        <button id="themeToggle" class="btn btn-icon" title="Toggle Light/Dark Theme" aria-label="Toggle Theme">
+          <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+          <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Method Info Alert Banner -->
+    <div class="method-banner" id="methodBanner">
+      <div class="banner-icon" id="bannerIcon">ℹ️</div>
+      <div class="banner-content">
+        <h3 id="bannerTitle">Contiguous Allocation</h3>
+        <p id="bannerDesc">Files occupy adjacent consecutive disk blocks. Provides fast direct access, but suffers from <strong>External Fragmentation</strong> when contiguous blocks of needed size aren't available.</p>
+      </div>
+      <div class="banner-metric">
+        <span class="metric-label">Block Size</span>
+        <span class="metric-val">8 Chars (Bytes)</span>
+      </div>
+    </div>
+
+    <!-- Main Dashboard Grid -->
+    <main class="dashboard-grid">
+      
+      <!-- Left Column: Virtual Disk Visualizer & Metrics -->
+      <section class="card disk-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Virtual Disk Grid</h2>
+            <span class="badge" id="diskUsageBadge">0 / 64 Blocks Used (0%)</span>
+          </div>
+          <div class="disk-legend">
+            <span class="legend-item"><span class="legend-dot free-dot"></span> Free</span>
+            <span class="legend-item"><span class="legend-dot used-dot"></span> Data Block</span>
+            <span class="legend-item"><span class="legend-dot index-dot"></span> Index Block</span>
+            <span class="legend-item"><span class="legend-dot highlight-dot"></span> Selected</span>
+          </div>
+        </div>
+
+        <!-- Disk Usage Bar -->
+        <div class="disk-usage-container">
+          <div class="disk-usage-bar" id="diskProgressBar" style="width: 0%;"></div>
+        </div>
+
+        <div class="disk-stats-row">
+          <div class="stat-pill">
+            <span class="stat-num" id="statFreeBlocks">64</span>
+            <span class="stat-label">Free Blocks</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num" id="statUsedBlocks">0</span>
+            <span class="stat-label">Used Blocks</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num" id="statMaxRun">64</span>
+            <span class="stat-label">Max Contiguous Run</span>
+          </div>
+          <div class="stat-pill">
+            <span class="stat-num" id="statTotalFiles">0</span>
+            <span class="stat-label">Active Files</span>
+          </div>
+        </div>
+
+        <!-- 64 Blocks Grid Container -->
+        <div class="grid-scroll-wrapper">
+          <div class="disk-grid" id="diskGrid">
+            <!-- Dynamically populated 64 blocks (0 to 63) -->
+          </div>
+        </div>
+
+        <div class="disk-grid-footer">
+          <small class="text-muted">💡 Hover over blocks to inspect contents, next pointers, or index tables. Click any file in the table to highlight its blocks.</small>
+        </div>
+      </section>
+
+      <!-- Right Column: Explorer & FAT & Operations -->
+      <section class="card explorer-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Directory Explorer</h2>
+            <span class="badge-subtle" id="explorerCountBadge">0 items</span>
+          </div>
+          <div class="explorer-actions">
+            <button id="btnNewFolder" class="btn btn-sm btn-primary-outline">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path><line x1="12" y1="11" x2="12" y2="17"></line><line x1="9" y1="14" x2="15" y2="14"></line></svg>
+              + New Folder
+            </button>
+            <button id="btnNewFile" class="btn btn-sm btn-primary">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+              + New File
+            </button>
+          </div>
+        </div>
+
+        <!-- Breadcrumb path navigation -->
+        <div class="breadcrumb-container">
+          <button id="btnGoUp" class="btn btn-xs btn-secondary" title="Go up one directory level (cd ..)" disabled>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"></polyline></svg>
+            Up
+          </button>
+          <div class="breadcrumbs" id="breadcrumbs">
+            <span class="crumb" data-path="/">/root</span>
+          </div>
+        </div>
+
+        <!-- Directory Content List -->
+        <div class="directory-list-container" id="directoryList">
+          <!-- Folder and File items rendered here -->
+        </div>
+
+        <!-- File Allocation Table (FAT) / Inode View -->
+        <div class="fat-section">
+          <div class="fat-header">
+            <h3>File Allocation Table (FAT)</h3>
+            <span class="text-muted" id="fatMethodLabel">Contiguous (Start, Length)</span>
+          </div>
+          <div class="table-responsive">
+            <table class="fat-table">
+              <thead>
+                <tr>
+                  <th>Color</th>
+                  <th>Name</th>
+                  <th>Path</th>
+                  <th>Size</th>
+                  <th>Blocks</th>
+                  <th id="fatSpecificColHeader">Allocation Info</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="fatTableBody">
+                <!-- Dynamically populated FAT rows -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bottom Log: Operating System Operations Log -->
+      <section class="card log-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>Kernel &amp; FS Operation Log</h2>
+            <span class="pulse-indicator"></span>
+          </div>
+          <div class="log-actions">
+            <button id="btnClearLog" class="btn btn-xs btn-secondary" title="Clear log entries">Clear Log</button>
+          </div>
+        </div>
+        <div class="log-container" id="logContainer">
+          <!-- Dynamic log lines -->
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="app-footer">
+      <p>Operating Systems Lab Project: File Allocation Techniques (Contiguous, Linked, Indexed) &bull; Pure JavaScript Simulation</p>
+    </footer>
+  </div>
+
+  <!-- MODAL: Create / Edit File Modal -->
+  <div class="modal-backdrop" id="fileModalBackdrop" style="display: none;">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h3 id="fileModalTitle">Create New File</h3>
+        <button class="modal-close" id="btnFileModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="fileEditOriginalName" value="" />
+        <div class="form-group">
+          <label for="inputFileName">File Name</label>
+          <input type="text" id="inputFileName" placeholder="e.g. notes.txt, os_lab.doc" autocomplete="off" />
+          <small class="form-help">Unique inside current directory. Recommended extension: .txt, .dat, .doc</small>
+        </div>
+        <div class="form-group">
+          <label for="inputFileContent">File Content (Characters)</label>
+          <textarea id="inputFileContent" rows="5" placeholder="Type text here... (Every 8 characters will occupy 1 disk block)"></textarea>
+          <div class="char-block-counter">
+            <span id="charCountLabel">0 characters</span> &bull; 
+            <span id="blockEstimateLabel">Requires 0 data blocks</span>
+            <span id="indexBlockEstimateLabel" class="text-accent" style="display:none;">(+1 index block = 1 total)</span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnFileModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="btnFileModalSave">Save File</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Create Folder Modal -->
+  <div class="modal-backdrop" id="folderModalBackdrop" style="display: none;">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-header">
+        <h3>New Directory</h3>
+        <button class="modal-close" id="btnFolderModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="inputFolderName">Folder Name</label>
+          <input type="text" id="inputFolderName" placeholder="e.g. documents, projects" autocomplete="off" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnFolderModalCancel">Cancel</button>
+        <button class="btn btn-primary" id="btnFolderModalCreate">Create Folder</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Read File & Block Traversal Visualization Modal -->
+  <div class="modal-backdrop" id="readModalBackdrop" style="display: none;">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-header">
+        <div class="modal-title-wrap">
+          <h3 id="readFileNameTitle">File Details &amp; Traversal</h3>
+          <span class="badge" id="readFileMethodBadge">Contiguous</span>
+        </div>
+        <button class="modal-close" id="btnReadModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- File Metadata summary -->
+        <div class="read-summary-grid">
+          <div class="summary-box">
+            <label>Path</label>
+            <div class="val" id="readFilePath">/root/file.txt</div>
+          </div>
+          <div class="summary-box">
+            <label>Size</label>
+            <div class="val" id="readFileSize">24 chars (3 blocks)</div>
+          </div>
+          <div class="summary-box">
+            <label>Allocation Info</label>
+            <div class="val" id="readFileAllocInfo">Start: 4, Length: 3</div>
+          </div>
+        </div>
+
+        <!-- Traversal Diagram Visualizer -->
+        <div class="traversal-section">
+          <h4>Disk Block Traversal Chain:</h4>
+          <div class="traversal-chain" id="readTraversalChain">
+            <!-- Traversal steps rendered here -->
+          </div>
+        </div>
+
+        <!-- Raw Content Viewer -->
+        <div class="content-viewer-section">
+          <h4>File Content:</h4>
+          <div class="file-content-display" id="readFileContent">
+            <!-- Text content -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" id="btnReadModalCloseBottom">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Tooltip Element for Disk Blocks -->
+  <div id="diskTooltip" class="custom-tooltip" style="display: none;"></div>
+
+  <script src="script.js"></script>
+</body>
+</html>
