@@ -46,6 +46,11 @@ An interactive, pure Vanilla HTML5/CSS3/JavaScript simulator that visualizes how
 
 ## 🚀 How to Run
 
+### 1. Live Online (Recommended)
+You can open and interact with the live hosted simulator directly on any device:
+👉 **[https://pjeeva140606.github.io/os-filesystem-simulator/](https://pjeeva140606.github.io/os-filesystem-simulator/)**
+
+### 2. Local Browser (Offline)
 1. Open the project folder:
    ```
    C:\Users\pjeev\.gemini\antigravity-ide\scratch\os-filesystem-simulator\
